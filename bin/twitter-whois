@@ -1,0 +1,50 @@
+#!/usr/bin/env ruby
+
+begin
+  require 'twitter'
+rescue LoadError
+  abort "Twitter gem not found.\n\n    gem install twitter"
+end
+require 'yaml'
+
+USERNAME_MAX_LENGTH = 15
+
+begin
+  credentials = YAML.load_file "#{Dir.home}/.twitter-api-creds"
+rescue Errno::ENOENT
+  abort <<-EOF
+No credentials file.
+Create a file at ~/.twitter-api-creds in YAML format:
+
+    consumer_key: REDACTED
+    consumer_secret: REDACTED
+
+<https://apps.twitter.com/app/new>
+EOF
+end
+
+client = Twitter::REST::Client.new do |config|
+  config.consumer_key = credentials['consumer_key']
+  config.consumer_secret = credentials['consumer_secret']
+end
+
+if ARGV.size != 1
+  abort "Usage: twitter-whois [username]"
+end
+
+username = ARGV[0]
+
+if username.size > USERNAME_MAX_LENGTH
+  abort "Twitter username max length is #{USERNAME_MAX_LENGTH}."
+end
+
+begin
+  client.user username
+  puts "https://twitter.com/#{username}"
+rescue Twitter::Error::NotFound
+  abort <<-EOF
+Not found.
+It will be mine. Oh yes. It will be mine.
+<https://twitter.com/signup?user[screen_name]=#{username}>
+  EOF
+end
