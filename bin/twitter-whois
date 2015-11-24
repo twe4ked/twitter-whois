@@ -1,50 +1,27 @@
-#!/usr/bin/env ruby
+#!/bin/bash -e
 
-begin
-  require 'twitter'
-rescue LoadError
-  abort "Twitter gem not found.\n\n    gem install twitter"
-end
-require 'yaml'
+USERNAME_MAX_LENGTH=15
 
-USERNAME_MAX_LENGTH = 15
+if [[ "$#" -ne 1 ]]; then
+  echo "Usage: twitter-whois [username]"
+  exit 1
+fi
 
-begin
-  credentials = YAML.load_file "#{Dir.home}/.twitter-api-creds"
-rescue Errno::ENOENT
-  abort <<-EOF
-No credentials file.
-Create a file at ~/.twitter-api-creds in YAML format:
+USERNAME="$1"
 
-    consumer_key: REDACTED
-    consumer_secret: REDACTED
+if [[ "$(echo -n "$USERNAME" | wc -m)" -gt "$USERNAME_MAX_LENGTH" ]]; then
+  echo "Twitter username max length is $USERNAME_MAX_LENGTH."
+  exit 1
+fi
 
-<https://apps.twitter.com/app/new>
-EOF
-end
+URL="https://twitter.com/$USERNAME"
 
-client = Twitter::REST::Client.new do |config|
-  config.consumer_key = credentials['consumer_key']
-  config.consumer_secret = credentials['consumer_secret']
-end
-
-if ARGV.size != 1
-  abort "Usage: twitter-whois [username]"
-end
-
-username = ARGV[0]
-
-if username.size > USERNAME_MAX_LENGTH
-  abort "Twitter username max length is #{USERNAME_MAX_LENGTH}."
-end
-
-begin
-  client.user username
-  puts "https://twitter.com/#{username}"
-rescue Twitter::Error::NotFound
-  abort <<-EOF
-Not found.
-It will be mine. Oh yes. It will be mine.
-<https://twitter.com/signup?user[screen_name]=#{username}>
-  EOF
-end
+if curl -I -s "$URL" | grep "HTTP.*200" > /dev/null; then
+  echo "Found."
+  echo "<$URL>"
+  exit
+else
+  echo "Not found."
+  echo "It will be mine. Oh yes. It will be mine."
+  echo "<https://twitter.com/signup?user[name]=$USERNAME>"
+fi
